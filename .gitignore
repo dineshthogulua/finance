@@ -3,6 +3,11 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# A lot of local files that are used as inputs have data in xl, csv files etc. We don't need to upload them.
+*.xls
+*.xlsx
+*.csv
+
 # C extensions
 *.so
 
