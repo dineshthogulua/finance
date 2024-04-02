@@ -4,19 +4,22 @@
 # Description:
 #   This contains some utility functions that use SEC's EDGAR APIs to extract financial information directly from 
 # SEC's database, curates them and returns information in forms that are suitable for further manipulation using
-# python code
+# python code. 
+#   Note: You don't need an API key to access EDGAR database. For reference, you can got throught their API 
+# documentation: https://www.sec.gov/edgar/sec-api-documentation
 # ------------------------------------------------------------------------------------------------------------------
 
 import requests
 import json
 import pandas as pd
 
+# ------------------------------------------------------------------------------------------------------------------
 # ticker_to_cik
 # Inputs
 #   ticker_list: A list of stock tickers of companies interested in. Ex: ['AAPL', 'MSFT','NVDA']
 # Output
 #   cik_list: A list of corresponding CIK values (as a 10 digit string)
-
+# ------------------------------------------------------------------------------------------------------------------
 def ticker_to_cik(ticker_list):
     headers = {'User-Agent': 'Fordham University sthoguluachandraseka@fordham.edu', 'Accept-Encoding': 'gzip,deflate', 'Host':'www.sec.gov'}
     resp = requests.get("https://www.sec.gov/files/company_tickers.json", headers=headers)
@@ -37,7 +40,8 @@ def ticker_to_cik(ticker_list):
         cik_str_list.append(cik_str_10digit)
     return cik_str_list
 
-# get_financial_item
+# ------------------------------------------------------------------------------------------------------------------
+# get_financial_item 
 # Description
 #   Gets the values of a financial item for a company across time
 # Inputs
@@ -53,8 +57,7 @@ def ticker_to_cik(ticker_list):
 #       whatever financial item you are looking for
 # Output
 #   data_df: A data frame that contains quarterly, annual values of the concept_of_interest for several years
-
-
+# ------------------------------------------------------------------------------------------------------------------
 def get_financial_item(cik_str, concept_of_interest):
     headers = {'User-Agent': 'Fordham University sthoguluachandraseka@fordham.edu', 'Accept-Encoding': 'gzip,deflate', 'Host':'data.sec.gov'}
     URL = "https://data.sec.gov/api/xbrl/companyconcept/CIK"+cik_str+"/us-gaap/"+ concept_of_interest+".json"
@@ -67,7 +70,7 @@ def get_financial_item(cik_str, concept_of_interest):
     data_df = pd.DataFrame.from_dict(data_dict['units']['USD'])
     return(data_df)
 
-
+# ------------------------------------------------------------------------------------------------------------------
 # get_companywide_concepts(cik_str_list, concepts_of_interest)
 # Gets the values of a financial item for several companies (annual, not quarterly) across time
 # Inputs
@@ -81,6 +84,7 @@ def get_financial_item(cik_str, concept_of_interest):
 #   all_companies_dict = A dictionary that has a dataframe for each company with company CIK as the key. The dataframe 
 #   for each company has three columns: concept, end and val, 
 #   several years of data. 
+# ------------------------------------------------------------------------------------------------------------------
 def get_companywide_concepts(cik_str_list, concepts_of_interest):
     all_companies_dict = dict.fromkeys(cik_str_list, None)
     for company in all_companies_dict:  # EDGAR APIs are built around individual companies. We have to fetch data one company at a time
