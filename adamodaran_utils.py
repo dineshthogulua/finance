@@ -230,12 +230,12 @@ def get_industry_and_sector(ticker):
 def get_ind_fundamentals(industry_list=None, country_list=["United States"]):
     data_df = get_adamodar_file("DollarUS")
     cols_of_interest = ['Revenues ($ millions)', 'Gross Profit ($ millions)', 'EBITDA ($ millions)', 'EBIT (Operating Income) ($ millions)', 'Net Income ( $ millions)']
-    rename_dict = {'Revenues ($ millions)': 'Reveue', 
+    rename_dict = {'Revenues ($ millions)': 'Revenue', 
                    'Gross Profit ($ millions)': 'Gross Profit', 
                    'EBITDA ($ millions)':'EBITDA', 
                    'EBIT (Operating Income) ($ millions)': 'EBIT', 
                    'Net Income ( $ millions)': 'Net Income'} 
-    fundamentals_df = data_df[cols_of_interest].rename(columns = rename_dict)
+    fundamentals_df = np.round(data_df[cols_of_interest].rename(columns = rename_dict)/1000).fillna(0).astype(int)
 
     if industry_list is None:
         return(fundamentals_df)
@@ -264,9 +264,9 @@ def get_ind_efficiency(industry_list=None, country_list=["United States"]):
     efficiency_df['DSO'] = np.round(data_df['Acc Rec/ Sales']*365)
 
     fundamentals_df = get_ind_fundamentals(industry_list=industry_list)
-    cogs_ds = fundamentals_df['Reveue'] - fundamentals_df['Gross Profit']
-    efficiency_df['DSI'] = np.round(data_df['Inventory/Sales']*fundamentals_df['Reveue']*365/cogs_ds)
-    efficiency_df['DPO'] = np.round(data_df['Acc Pay/ Sales']*fundamentals_df['Reveue']*365/cogs_ds)
+    cogs_ds = fundamentals_df['Revenue'] - fundamentals_df['Gross Profit']
+    efficiency_df['DSI'] = np.round(data_df['Inventory/Sales']*fundamentals_df['Revenue']*365/cogs_ds)
+    efficiency_df['DPO'] = np.round(data_df['Acc Pay/ Sales']*fundamentals_df['Revenue']*365/cogs_ds)
 
     data_df = get_adamodar_file("Employee")
     cols_of_interest = ['Revenues per Employee  ($)']
@@ -280,9 +280,9 @@ def get_ind_efficiency(industry_list=None, country_list=["United States"]):
 
 
 # ------------------------------------------------------------------------------------------------------------------
-# get_ind_performance
+# get_ind_profitability
 # Description:
-#   Returns data about industry performance
+#   Returns data about industry profitability
 # Inputs
 #   industry_list: A python list of industry names. This input is optional. If not provided, data is returned for 
 #                  all industries . If provided, data is returned for the given list of industries as well as 
@@ -290,24 +290,27 @@ def get_ind_efficiency(industry_list=None, country_list=["United States"]):
 #   country_list: A python list of the names of the country. Optional argument. Use get_country_list() to see all 
 #                 country names, if not provided, it defaults to only the United States.
 # Output
-#   performance_df: A pandas dataframe with the index being industry names
+#   profitability_df: A pandas dataframe with the index being industry names
 # ------------------------------------------------------------------------------------------------------------------
-def get_ind_performance(industry_list=None, country_list=["United States"]):
+def get_ind_profitability(industry_list=None, country_list=["United States"]):
     data_df = get_adamodar_file("margin")
     cols_of_interest = ['Gross Margin', 'Net Margin', 'After-tax Lease & R&D adj Margin', 'EBITDA/Sales','R&D/Sales', 'SG&A/ Sales']
-    performance_df = data_df[cols_of_interest]
+    rename_dict={'After-tax Lease & R&D adj Margin':'EBIT Margin', 
+                 'EBITDA/Sales':'EBIT_Margin',
+                 'R&D/Sales':'R&D Margin', 
+                 'SG&A/ Sales':'SG&A Margin'}
+    profitability_df = np.round(data_df[cols_of_interest].rename(columns=rename_dict)*100).fillna(0).astype(int)
 
     data_df = get_adamodar_file("EVA")
-    cols_of_interest = ['ROE', '(ROE - COE)', 'ROC', '(ROC - WACC)', 'EVA (US $ millions)']
-    rename_dict = {'EVA (US $ millions)': 'EVA'}
-    temp_df = data_df[cols_of_interest].rename(columns = rename_dict)
-    performance_df[temp_df.columns] = temp_df[temp_df.columns]
+    cols_of_interest = ['ROE', '(ROE - COE)', 'ROC', '(ROC - WACC)']
+    profitability_df[cols_of_interest] = np.round(data_df[cols_of_interest]*100).fillna(0).astype(int)
+    profitability_df['EVA'] = np.round(data_df['EVA (US $ millions)']/1000).fillna(0).astype(int)
     
     if industry_list is None:
-        return(performance_df)
+        return(profitability_df)
     else:
         industry_list.append('Total Market (without financials')
-        return(performance_df[performance_df.index.isin(industry_list)])
+        return(profitability_df[profitability_df.index.isin(industry_list)])
 
 
 # ------------------------------------------------------------------------------------------------------------------
@@ -341,6 +344,8 @@ def get_ind_multiples(industry_list=None, country_list=["United States"]):
 
     multiples_df['EV/EBITDA'] = data_df[('Only positive EBITDA firms', 'EV/EBITDA')]
     multiples_df['EV/EBIT'] = data_df[('Only positive EBITDA firms', 'EV/EBIT')]
+
+    multiples_df.loc[:,:] = np.round(multiples_df.loc[:,:],1)
     
     if industry_list is None:
         return(multiples_df)
@@ -366,7 +371,9 @@ def get_ind_risk(industry_list=None, country_list=["United States"]):
     data_df = get_adamodar_file("betas")
     average_beta_colname = data_df.filter(regex="^Average").columns[0] # Extract the column name for Average unlevered Beta corrected for cash 
     data_df.columns = data_df.columns.str.strip()
-    risk_df = data_df[['Number of firms', 'Beta', 'D/E Ratio', average_beta_colname]].rename(columns = {average_beta_colname:'UBCC'})
+    risk_df = data_df[['Number of firms', 'D/E Ratio', average_beta_colname]].rename(columns = {average_beta_colname:'Beta', 'D/E Ratio':'D/E'})
+    risk_df['Beta'] = np.round(risk_df['Beta'],2)
+    risk_df['D/E'] = np.round(risk_df['D/E']*100)
 
     data_df = get_adamodar_file("wacc")
     cols_of_interest = ['Cost of Equity', 'After-tax Cost of Debt', 'Cost of Capital']
@@ -402,7 +409,11 @@ def get_ind_demand(industry_list=None, country_list=["United States"]):
                    'CAGR in Revenues- Last 5 years':'Revenue CAGR (past 5y)',
                    'Expected Growth in Revenues - Next 2 years': 'Revenue CAGR (next 2y)',
                    'Expected Growth in Revenues - Next 5 years': 'Revenue CAGR (next 5y)'}
-    demand_df = data_df[cols_of_interest].rename(columns = rename_dict)
+    demand_df = pd.DataFrame(index=data_df.index)
+    demand_df['Net Income CAGR (past 5y)'] = np.round(data_df['CAGR in Net Income- Last 5 years']*100).fillna(0).astype(int)
+    demand_df['Revenue CAGR (past 5y)'] = np.round(data_df['CAGR in Revenues- Last 5 years']*100).fillna(0).astype(int)
+    demand_df['Revenue CAGR (next 2y)'] = np.round(data_df['Expected Growth in Revenues - Next 2 years']*100).fillna(0).astype(int)
+    demand_df['Revenue CAGR (next 5y)'] = np.round(data_df['Expected Growth in Revenues - Next 5 years']*100).fillna(0).astype(int)
 
     if industry_list is None:
         return(demand_df)
