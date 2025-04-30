@@ -41,22 +41,42 @@ def get_raw_industry_df():
 #   filename: A string containing the filename on the professor's website that you want to download
 #   stale_period: If the data in local cache is older than this number in days, we fetch fresh data form the
 #                 site. Otherwise we simply return the data in the cache
+#   country: At the moment only United States is supported. TODO: Implement for other countries/global
+#   year: If unspecified, lastest year's data will be returned. You can specify, as an integer, a past year using
+#         the last two digits. Data from the Prof.'s archive will be returned (data that was calculated at the end 
+#         of the specified year). Ex. If you specify 15, the data computed at the end of 2015 will be returned
 # ------------------------------------------------------------------------------------------------------------------
-def get_adamodar_file(filename, stale_period = 7, country="United States"):
+def get_adamodar_file(filename, stale_period = 30, country="United States", year = None):
     local_dir_name = os.path.dirname(__file__)
-    file_path = "{}\\cache\\{}.xls".format(local_dir_name, filename)
-              
+    if year is None:
+        file_path = "{}\\cache\\{}.xls".format(local_dir_name, filename)
+        site_location = "https://www.stern.nyu.edu/~adamodar/pc/datasets/{}.xls".format(filename)         
+    else:
+        year_str = f"{year:02d}"  # Convert year to a two-digit string
+        file_path = "{}\\cache\\{}{}.xls".format(local_dir_name, filename, year_str)
+        site_location = "https://pages.stern.nyu.edu/~adamodar/pc/archives/{}{}.xls".format(filename, year_str)
+
     if is_file_cached(file_path, stale_period) == False: # We don't expect betas for different industries to change in a week
-        resp = requests.get("https://www.stern.nyu.edu/~adamodar/pc/datasets/{}.xls".format(filename), verify=False)
+        resp = requests.get(site_location, verify=False)
         with open(file_path, "wb") as f:  
             f.write(resp.content) 
 
-    sheets_df = pd.read_excel(local_dir_name+"\\adamodar_specifics.xlsx", sheet_name="sheetnames", engine="openpyxl", index_col=0)
-    sheetname = sheets_df.loc[filename,'sheet name']
+
+    # sheets_df = pd.read_excel(local_dir_name+"\\adamodar_specifics.xlsx", sheet_name="sheetnames", engine="openpyxl", index_col=0)
+    # sheetname = sheets_df.loc[filename,'sheet name']
     skiprows_df = pd.read_excel(local_dir_name+"\\adamodar_specifics.xlsx", sheet_name="skiprows", engine="openpyxl", index_col=0)
     skiprows = skiprows_df.loc[filename, 'skiprows']
     headers_df = pd.read_excel(local_dir_name+"\\adamodar_specifics.xlsx", sheet_name="header levels", engine="openpyxl", index_col=0)
     header_levels = headers_df.loc[filename, 'header levels']
+
+    excel_file = pd.ExcelFile(file_path, engine="xlrd")
+    sheet_names = excel_file.sheet_names
+
+    if "Industry Averages" in sheet_names: 
+        sheetname = "Industry Averages"
+    else:
+        sheetname = "Sheet1"
+
     if (header_levels ==1):
         data_df = pd.read_excel(file_path, sheet_name=sheetname, engine="xlrd", skiprows=int(skiprows), index_col=0) 
     else:
@@ -296,7 +316,7 @@ def get_ind_profitability(industry_list=None, country_list=["United States"]):
     data_df = get_adamodar_file("margin")
     cols_of_interest = ['Gross Margin', 'Net Margin', 'After-tax Lease & R&D adj Margin', 'EBITDA/Sales','R&D/Sales', 'SG&A/ Sales']
     rename_dict={'After-tax Lease & R&D adj Margin':'EBIT Margin', 
-                 'EBITDA/Sales':'EBIT_Margin',
+                 'EBITDA/Sales':'EBITDA_Margin',
                  'R&D/Sales':'R&D Margin', 
                  'SG&A/ Sales':'SG&A Margin'}
     profitability_df = np.round(data_df[cols_of_interest].rename(columns=rename_dict)*100).fillna(0).astype(int)

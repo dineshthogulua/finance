@@ -18,7 +18,7 @@ import os
 from common_utils import is_file_cached
 
 # Set up the environment
-yf.set_tz_cache_location("../cache/yfinance")
+yf.set_tz_cache_location("../cache/yfinance") # TODO: Shouldn't this is be just cache/yfinance?
 pd.set_option('display.width', 1000)
 class CachedLimiterSession(CacheMixin, LimiterMixin, Session):
    pass
@@ -44,7 +44,7 @@ def get_historical_returns(ticker, no_of_years = 10):
     start_date = end_date - pd.DateOffset(years=no_of_years+1)  # We need 11 years of data to be able to calculate 10 years of returns
 
     try:
-        data = yf.download(ticker, start=start_date, end=end_date, interval="3mo", progress=False)
+        data = yf.download(ticker, start=start_date, end=end_date, interval="3mo", progress=False)  # TODO: Not using session?
         if data.empty:
             return(None)
     except:
