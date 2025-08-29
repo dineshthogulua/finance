@@ -7,8 +7,12 @@
 import sys
 import os
 import pandas as pd
-import numpy as np
+import numpy as np 
+
+from urllib3.exceptions import InsecureRequestWarning
+import urllib3
 import requests
+
 from common_utils import is_file_cached
 
 # ------------------------------------------------------------------------------------------------------------------
@@ -23,7 +27,8 @@ from common_utils import is_file_cached
 def get_raw_industry_df():
     local_dir_name = os.path.dirname(__file__)
     indname_file_path = local_dir_name + "\\cache\\" + "indname.xlsx"
-              
+    
+    urllib3.disable_warnings(InsecureRequestWarning)          
     if is_file_cached(indname_file_path, 7) == False: # We don't expect industry company name lists to change in a week
         resp = requests.get("https://www.stern.nyu.edu/~adamodar/pc/datasets/indname.xlsx", verify=False)
         with open(indname_file_path, "wb") as f:  
